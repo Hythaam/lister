@@ -42,6 +42,7 @@ server.register( async function (server) {
     server.register(await import('./routes/lists.js'));
     server.register(await import('./routes/items.js'));
     server.register(await import('./routes/comments.js'));
+    server.register(await import('./routes/groups.js'));
   },
   { prefix: '/api' }
 );

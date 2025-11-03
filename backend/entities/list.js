@@ -46,6 +46,11 @@ export const ListSchema = new EntitySchema({
         name: 'user_id'
       },
       nullable: false
+    },
+    sharedWithGroups: {
+      type: 'many-to-many',
+      target: 'Group',
+      mappedBy: 'sharedLists'
     }
   }
 });

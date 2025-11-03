@@ -1,6 +1,6 @@
 # Lister Frontend Application
 
-This document describes how to work with the Vite React frontend application in the Lister project.
+This document describes how to work with the Vite React frontend application in the Lister project. Lister is a gift-list management application.
 
 ## Development Environment
 

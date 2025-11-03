@@ -34,5 +34,17 @@ export const UserSchema = new EntitySchema({
       type: 'simple-array',
       nullable: true
     }
+  },
+  relations: {
+    groups: {
+      type: 'many-to-many',
+      target: 'Group',
+      mappedBy: 'members'
+    },
+    createdGroups: {
+      type: 'one-to-many',
+      target: 'Group',
+      mappedBy: 'createdBy'
+    }
   }
 });
