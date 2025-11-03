@@ -397,6 +397,13 @@ export default async function(fastify) {
         return;
       }
 
+      // Check group size limit (100 members max)
+      const currentMemberCount = group.members ? group.members.length : 0;
+      if (currentMemberCount >= 100) {
+        reply.status(400).send({ error: 'Group has reached the maximum limit of 100 members' });
+        return;
+      }
+
       if (!group.members) {
         group.members = [];
       }
@@ -468,6 +475,67 @@ export default async function(fastify) {
     } catch (error) {
       fastify.log.error(error, 'Failed to remove member from group');
       reply.status(500).send({ error: 'Failed to remove member from group' });
+    }
+  });
+
+  // Remove yourself from a group - allows members to leave groups
+  fastify.delete('/groups/:id/members/me', {
+    schema: {
+      description: 'Remove yourself from a group',
+      tags: ['groups'],
+      security: [{ basicAuth: [] }],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' }
+        },
+        required: ['id']
+      },
+      response: {
+        204: { type: 'null' },
+        401: errorSchema,
+        403: errorSchema,
+        404: errorSchema,
+        500: errorSchema
+      }
+    }
+  }, async (request, reply) => {
+    const userId = request.user.id;
+    const groupId = request.params.id;
+
+    try {
+      const group = await groupRepository
+        .createQueryBuilder('group')
+        .leftJoinAndSelect('group.members', 'member')
+        .where('group.id = :groupId', { groupId })
+        .getOne();
+
+      if (!group) {
+        reply.status(404).send({ error: 'Group not found' });
+        return;
+      }
+
+      // Group creators cannot leave their own groups
+      if (group.createdBy === userId) {
+        reply.status(403).send({ error: 'Group creators cannot leave their own groups' });
+        return;
+      }
+
+      // Check if user is a member
+      const isMember = group.members?.some(member => member.id === userId);
+      if (!isMember) {
+        reply.status(404).send({ error: 'You are not a member of this group' });
+        return;
+      }
+
+      // Remove user from group
+      group.members = group.members.filter(member => member.id !== userId);
+      await groupRepository.save(group);
+
+      reply.status(204).send();
+    } catch (error) {
+      fastify.log.error(error, 'Failed to leave group');
+      reply.status(500).send({ error: 'Failed to leave group' });
     }
   });
 

@@ -59,7 +59,7 @@ const start = async () => {
     // Save OpenAPI spec to file
     try {
       const spec = server.swagger();
-      const specPath = path.join(process.cwd(), '..', 'docs', 'openapi.json');
+      const specPath = path.join(process.cwd(), '..', 'docs', 'backend-openapi.json');
       
       // Ensure docs directory exists
       await fs.mkdir(path.dirname(specPath), { recursive: true });

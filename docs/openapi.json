@@ -34,6 +34,12 @@
                     "type": "string",
                     "format": "email"
                   },
+                  "name": {
+                    "type": "string"
+                  },
+                  "activated": {
+                    "type": "boolean"
+                  },
                   "roles": {
                     "type": "array",
                     "items": {
@@ -94,6 +100,10 @@
                   "type": "string",
                   "format": "email"
                 },
+                "name": {
+                  "type": "string",
+                  "maxLength": 255
+                },
                 "password": {
                   "type": "string",
                   "minLength": 6
@@ -115,6 +125,12 @@
                 "email": {
                   "type": "string",
                   "format": "email"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "activated": {
+                  "type": "boolean"
                 },
                 "roles": {
                   "type": "array",
@@ -204,6 +220,12 @@
                   "type": "string",
                   "format": "email"
                 },
+                "name": {
+                  "type": "string"
+                },
+                "activated": {
+                  "type": "boolean"
+                },
                 "roles": {
                   "type": "array",
                   "items": {
@@ -273,9 +295,16 @@
                   "type": "string",
                   "format": "email"
                 },
+                "name": {
+                  "type": "string",
+                  "maxLength": 255
+                },
                 "password": {
                   "type": "string",
                   "minLength": 6
+                },
+                "activated": {
+                  "type": "boolean"
                 },
                 "roles": {
                   "type": "array",
@@ -312,6 +341,12 @@
                 "email": {
                   "type": "string",
                   "format": "email"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "activated": {
+                  "type": "boolean"
                 },
                 "roles": {
                   "type": "array",
@@ -448,9 +483,355 @@
         }
       }
     },
+    "/api/users/invite": {
+      "post": {
+        "description": "Invite a new user by email",
+        "tags": [
+          "users"
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "email"
+              ],
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email"
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 255
+                }
+              }
+            }
+          }
+        ],
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "activated": {
+                      "type": "boolean"
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/search": {
+      "get": {
+        "description": "Search users by email for autocomplete",
+        "tags": [
+          "users"
+        ],
+        "parameters": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "required": true,
+            "in": "query",
+            "name": "email"
+          }
+        ],
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/activate": {
+      "post": {
+        "description": "Activate user account with name and password",
+        "tags": [
+          "users"
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "email",
+                "password"
+              ],
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email"
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                "password": {
+                  "type": "string",
+                  "minLength": 6
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "activated": {
+                      "type": "boolean"
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lists": {
       "get": {
-        "description": "Get all lists for the authenticated user",
+        "description": "Get all lists accessible to the user (owned + shared)",
         "tags": [
           "lists"
         ],
@@ -884,6 +1265,329 @@
           "204": {
             "description": "Default Response",
             "schema": {}
+          },
+          "401": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lists/{id}/share": {
+      "post": {
+        "description": "Share a list with groups",
+        "tags": [
+          "lists"
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "groupIds"
+              ],
+              "properties": {
+                "groupIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "required": true,
+            "in": "path",
+            "name": "id"
+          }
+        ],
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lists/{id}/share/{groupId}": {
+      "delete": {
+        "description": "Unshare a list from a specific group",
+        "tags": [
+          "lists"
+        ],
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "required": true,
+            "in": "path",
+            "name": "id"
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "required": true,
+            "in": "path",
+            "name": "groupId"
+          }
+        ],
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lists/{id}/shared-groups": {
+      "get": {
+        "description": "Get groups that a list is shared with",
+        "tags": [
+          "lists"
+        ],
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "required": true,
+            "in": "path",
+            "name": "id"
+          }
+        ],
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Default Response",
@@ -1525,7 +2229,7 @@
     },
     "/api/lists/{listId}/items/{itemId}/comments": {
       "get": {
-        "description": "Get all comments for a specific item",
+        "description": "Get all comments for a specific item (not available for list owners)",
         "tags": [
           "comments"
         ],
@@ -1569,6 +2273,13 @@
                   "sourceUser": {
                     "type": "string",
                     "format": "uuid"
+                  },
+                  "authorName": {
+                    "type": "string"
+                  },
+                  "authorEmail": {
+                    "type": "string",
+                    "format": "email"
                   },
                   "text": {
                     "type": "string"
@@ -1630,7 +2341,7 @@
         }
       },
       "post": {
-        "description": "Create a new comment on an item",
+        "description": "Create a new comment on an item (not available for list owners)",
         "tags": [
           "comments"
         ],
@@ -1689,6 +2400,13 @@
                 "sourceUser": {
                   "type": "string",
                   "format": "uuid"
+                },
+                "authorName": {
+                  "type": "string"
+                },
+                "authorEmail": {
+                  "type": "string",
+                  "format": "email"
                 },
                 "text": {
                   "type": "string"
@@ -1779,7 +2497,7 @@
     },
     "/api/lists/{listId}/items/{itemId}/comments/{commentId}": {
       "get": {
-        "description": "Get a specific comment by ID",
+        "description": "Get a specific comment by ID (not available for list owners)",
         "tags": [
           "comments"
         ],
@@ -1828,6 +2546,13 @@
                 "sourceUser": {
                   "type": "string",
                   "format": "uuid"
+                },
+                "authorName": {
+                  "type": "string"
+                },
+                "authorEmail": {
+                  "type": "string",
+                  "format": "email"
                 },
                 "text": {
                   "type": "string"
@@ -1888,7 +2613,7 @@
         }
       },
       "put": {
-        "description": "Update an existing comment",
+        "description": "Update an existing comment (not available for list owners)",
         "tags": [
           "comments"
         ],
@@ -1951,6 +2676,13 @@
                 "sourceUser": {
                   "type": "string",
                   "format": "uuid"
+                },
+                "authorName": {
+                  "type": "string"
+                },
+                "authorEmail": {
+                  "type": "string",
+                  "format": "email"
                 },
                 "text": {
                   "type": "string"
@@ -2039,7 +2771,7 @@
         }
       },
       "delete": {
-        "description": "Delete a comment",
+        "description": "Delete a comment (not available for list owners)",
         "tags": [
           "comments"
         ],
@@ -2874,6 +3606,89 @@
             "required": true,
             "in": "path",
             "name": "userId"
+          }
+        ],
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          },
+          "401": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/groups/{id}/members/me": {
+      "delete": {
+        "description": "Remove yourself from a group",
+        "tags": [
+          "groups"
+        ],
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "required": true,
+            "in": "path",
+            "name": "id"
           }
         ],
         "security": [

@@ -27,7 +27,8 @@ export const GroupSchema = new EntitySchema({
       nullable: false
     },
     description: {
-      type: 'text',
+      type: 'varchar',
+      length: 1000,
       nullable: true
     },
     createdBy: {

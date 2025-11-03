@@ -1,5 +1,7 @@
 import { Item } from '../entities/item.js';
 import { List } from '../entities/list.js';
+import { Group } from '../entities/group.js';
+import { User } from '../entities/user.js';
 
 // Schema definitions
 const itemSchema = {
@@ -44,6 +46,8 @@ export default async function(fastify) {
 
   const itemRepository = fastify.db.getRepository(Item);
   const listRepository = fastify.db.getRepository(List);
+  const groupRepository = fastify.db.getRepository(Group);
+  const userRepository = fastify.db.getRepository(User);
 
   // Helper function to check if user owns the list
   async function checkListOwnership(userId, listId) {
@@ -53,7 +57,34 @@ export default async function(fastify) {
     return list;
   }
 
-  // Get all items for a specific list - requires authentication
+  // Helper function to check if user has access to a list (owns it or member of group it's shared with)
+  async function checkListAccess(userId, listId) {
+    // First check if user owns the list
+    const ownedList = await listRepository.findOne({
+      where: { id: listId, user: userId }
+    });
+    
+    if (ownedList) {
+      return { list: ownedList, isOwner: true };
+    }
+
+    // Check if list is shared with any groups the user belongs to
+    const list = await listRepository
+      .createQueryBuilder('list')
+      .leftJoinAndSelect('list.sharedWithGroups', 'group')
+      .leftJoinAndSelect('group.members', 'member')
+      .where('list.id = :listId', { listId })
+      .andWhere('(group.createdBy = :userId OR member.id = :userId)', { userId })
+      .getOne();
+
+    if (list && list.sharedWithGroups && list.sharedWithGroups.length > 0) {
+      return { list, isOwner: false };
+    }
+
+    return null;
+  }
+
+  // Get all items for a specific list - requires authentication and access
   fastify.get('/lists/:listId/items', {
     schema: {
       description: 'Get all items for a specific list',
@@ -80,9 +111,9 @@ export default async function(fastify) {
     const { listId } = request.params;
     const userId = request.user.id;
 
-    // Check if user owns the list
-    const list = await checkListOwnership(userId, listId);
-    if (!list) {
+    // Check if user has access to the list (owns it or shared via group)
+    const accessResult = await checkListAccess(userId, listId);
+    if (!accessResult) {
       reply.status(404).send({ error: 'List not found or access denied' });
       return;
     }
@@ -120,9 +151,9 @@ export default async function(fastify) {
     const { listId, itemId } = request.params;
     const userId = request.user.id;
 
-    // Check if user owns the list
-    const list = await checkListOwnership(userId, listId);
-    if (!list) {
+    // Check if user has access to the list (owns it or shared via group)
+    const accessResult = await checkListAccess(userId, listId);
+    if (!accessResult) {
       reply.status(404).send({ error: 'List not found or access denied' });
       return;
     }
@@ -175,6 +206,16 @@ export default async function(fastify) {
     }
 
     try {
+      // Check item limit per list (1000 items max)
+      const itemCount = await itemRepository.count({
+        where: { list: listId }
+      });
+
+      if (itemCount >= 1000) {
+        reply.status(400).send({ error: 'List has reached the maximum limit of 1000 items' });
+        return;
+      }
+
       const newItem = itemRepository.create({
         list: listId,
         title,

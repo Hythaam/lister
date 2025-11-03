@@ -4,7 +4,9 @@ export class User {
   constructor() {
     this.id = undefined;
     this.email = undefined;
+    this.name = undefined;
     this.passwordHash = undefined;
+    this.activated = undefined;
     this.roles = undefined;
   }
 }
@@ -25,9 +27,19 @@ export const UserSchema = new EntitySchema({
       unique: true,
       nullable: false
     },
+    name: {
+      type: 'varchar',
+      length: 255,
+      nullable: true
+    },
     passwordHash: {
       type: 'varchar',
       length: 255,
+      nullable: false
+    },
+    activated: {
+      type: 'boolean',
+      default: true,
       nullable: false
     },
     roles: {

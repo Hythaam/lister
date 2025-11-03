@@ -6,6 +6,8 @@ const userSchema = {
   properties: {
     id: { type: 'string', format: 'uuid' },
     email: { type: 'string', format: 'email' },
+    name: { type: 'string' },
+    activated: { type: 'boolean' },
     roles: { type: 'array', items: { type: 'string' } }
   }
 };
@@ -15,6 +17,7 @@ const userCreateSchema = {
   required: ['email', 'password'],
   properties: {
     email: { type: 'string', format: 'email' },
+    name: { type: 'string', maxLength: 255 },
     password: { type: 'string', minLength: 6 }
   }
 };
@@ -23,8 +26,19 @@ const userUpdateSchema = {
   type: 'object',
   properties: {
     email: { type: 'string', format: 'email' },
+    name: { type: 'string', maxLength: 255 },
     password: { type: 'string', minLength: 6 },
+    activated: { type: 'boolean' },
     roles: { type: 'array', items: { type: 'string' } }
+  }
+};
+
+const userInviteSchema = {
+  type: 'object',
+  required: ['email'],
+  properties: {
+    email: { type: 'string', format: 'email' },
+    name: { type: 'string', maxLength: 255 }
   }
 };
 
@@ -60,7 +74,7 @@ export default async function(fastify) {
   }, async (request, reply) => {
     fastify.log.info(request.requestContext.getStore(), 'Fetching all users');
     const users = await userRepository.find({
-      select: ['id', 'email'] // Don't return password hashes
+      select: ['id', 'email', 'name', 'activated'] // Don't return password hashes
     }); 
     return users;
   });
@@ -88,7 +102,7 @@ export default async function(fastify) {
   }, async (request, reply) => {
     const user = await userRepository.findOne({
       where: { id: request.params.id },
-      select: ['id', 'email'] // Don't return password hash
+      select: ['id', 'email', 'name', 'activated'] // Don't return password hash
     });
     if (!user) {
       reply.status(404).send({ message: 'User not found' });
@@ -115,7 +129,7 @@ export default async function(fastify) {
       }
     }
   }, async (request, reply) => {
-    const { email, password } = request.body;
+    const { email, name, password } = request.body;
     
     if (!email || !password) {
       reply.status(400).send({ error: 'Email and password are required' });
@@ -133,15 +147,19 @@ export default async function(fastify) {
       const hash = await fastify.bcrypt.hash(password);
       const newUser = userRepository.create({
         email,
+        name: name || null,
         passwordHash: hash,
-        roles: ['admin'] // Default role
+        activated: false, // Default to not activated - users must activate via /activate endpoint
+        roles: ['user'] // Default role for new registrations
       });
       const savedUser = await userRepository.save(newUser);
       
       // Return user without password hash
       reply.status(201).send({
         id: savedUser.id,
-        email: savedUser.email
+        email: savedUser.email,
+        name: savedUser.name,
+        activated: savedUser.activated
       });
     } catch (error) {
       reply.status(500).send({ error: 'Failed to create user' });
@@ -183,7 +201,7 @@ export default async function(fastify) {
       return;
     }
 
-    const { email, password, roles } = request.body;
+    const { email, name, password, activated, roles } = request.body;
 
     if (email) {
       // Check if email is already taken by another user
@@ -198,8 +216,16 @@ export default async function(fastify) {
       user.email = email;
     }
     
+    if (name !== undefined) {
+      user.name = name;
+    }
+    
     if (password) {
       user.passwordHash = await fastify.bcrypt.hash(password);
+    }
+
+    if (activated !== undefined) {
+      user.activated = activated;
     }
 
     if (roles) {
@@ -212,6 +238,8 @@ export default async function(fastify) {
     return {
       id: updatedUser.id,
       email: updatedUser.email,
+      name: updatedUser.name,
+      activated: updatedUser.activated,
       roles: updatedUser.roles
     };
   });
@@ -251,6 +279,224 @@ export default async function(fastify) {
     }
     await userRepository.remove(user);
     reply.status(204).send();
+  });
+
+  // Helper function to send invitation email (mock implementation)
+  async function sendInvitationEmail(email, name, tempPassword) {
+    // In a real implementation, this would integrate with an email service
+    // For now, we'll just log the invitation details
+    fastify.log.info(`Invitation email would be sent to: ${email}`);
+    fastify.log.info(`Name: ${name || 'Not provided'}`);
+    fastify.log.info(`Temporary password: ${tempPassword}`);
+    fastify.log.info(`Login URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`);
+    
+    // TODO: Integrate with actual email service (SendGrid, SES, etc.)
+    return true;
+  }
+
+  // Invite a user - creates inactive user and sends invitation email
+  fastify.post('/users/invite', {
+    schema: {
+      description: 'Invite a new user by email',
+      tags: ['users'],
+      security: [{ basicAuth: [] }],
+      body: userInviteSchema,
+      response: {
+        201: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' },
+            user: userSchema
+          }
+        },
+        400: errorSchema,
+        401: errorSchema,
+        409: errorSchema,
+        500: errorSchema
+      }
+    }
+  }, async (request, reply) => {
+    const { email, name } = request.body;
+    
+    if (!email) {
+      reply.status(400).send({ error: 'Email is required' });
+      return;
+    }
+
+    try {
+      // Check if user already exists
+      const existingUser = await userRepository.findOneBy({ email });
+      if (existingUser) {
+        reply.status(409).send({ error: 'User with this email already exists' });
+        return;
+      }
+
+      const defaultPassword = 'default';
+      const hash = await fastify.bcrypt.hash(defaultPassword);
+      
+      const newUser = userRepository.create({
+        email,
+        name: name || null,
+        passwordHash: hash,
+        activated: false, // User is not activated until they log in and change password
+        roles: ['user'] // Default role for invited users
+      });
+      
+      const savedUser = await userRepository.save(newUser);
+      
+      // Send invitation email
+      try {
+        await sendInvitationEmail(email, name, defaultPassword);
+      } catch (emailError) {
+        fastify.log.error(emailError, 'Failed to send invitation email');
+        // Don't fail the request if email sending fails
+      }
+      
+      // Return success response
+      reply.status(201).send({
+        message: 'User invitation sent successfully',
+        user: {
+          id: savedUser.id,
+          email: savedUser.email,
+          name: savedUser.name,
+          activated: savedUser.activated
+        }
+      });
+    } catch (error) {
+      fastify.log.error(error, 'Failed to invite user');
+      reply.status(500).send({ error: 'Failed to invite user' });
+    }
+  });
+
+  // Search users by email for autocomplete - requires authentication
+  fastify.get('/users/search', {
+    schema: {
+      description: 'Search users by email for autocomplete',
+      tags: ['users'],
+      security: [{ basicAuth: [] }],
+      querystring: {
+        type: 'object',
+        properties: {
+          email: { type: 'string', minLength: 1 }
+        },
+        required: ['email']
+      },
+      response: {
+        200: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              email: { type: 'string', format: 'email' },
+              name: { type: 'string' }
+            }
+          }
+        },
+        400: errorSchema,
+        401: errorSchema,
+        500: errorSchema
+      }
+    }
+  }, async (request, reply) => {
+    const { email } = request.query;
+    
+    if (!email) {
+      reply.status(400).send({ error: 'Email parameter is required' });
+      return;
+    }
+
+    try {
+      // Search for users with email containing the search term (case insensitive)
+      const users = await userRepository
+        .createQueryBuilder('user')
+        .select(['user.id', 'user.email', 'user.name'])
+        .where('LOWER(user.email) LIKE LOWER(:email)', { email: `%${email}%` })
+        .andWhere('user.activated = :activated', { activated: true })
+        .limit(10) // Limit results for autocomplete
+        .getMany();
+      
+      return users;
+    } catch (error) {
+      fastify.log.error(error, 'Failed to search users');
+      reply.status(500).send({ error: 'Failed to search users' });
+    }
+  });
+
+  // Activate user account - public endpoint for account activation
+  fastify.post('/activate', {
+    schema: {
+      description: 'Activate user account with name and password',
+      tags: ['users'],
+      body: {
+        type: 'object',
+        required: ['email', 'password'],
+        properties: {
+          email: { type: 'string', format: 'email' },
+          name: { type: 'string', maxLength: 255 },
+          password: { type: 'string', minLength: 6 }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' },
+            user: userSchema
+          }
+        },
+        400: errorSchema,
+        404: errorSchema,
+        409: errorSchema,
+        500: errorSchema
+      }
+    }
+  }, async (request, reply) => {
+    const { email, name, password } = request.body;
+    
+    if (!email || !password) {
+      reply.status(400).send({ error: 'Email and password are required' });
+      return;
+    }
+
+    try {
+      // Find user by email
+      const user = await userRepository.findOneBy({ email });
+      if (!user) {
+        reply.status(404).send({ error: 'User not found' });
+        return;
+      }
+
+      // Check if user is already activated
+      if (user.activated) {
+        reply.status(409).send({ error: 'User account is already activated' });
+        return;
+      }
+
+      // Update user with new name and password
+      if (name !== undefined) {
+        user.name = name;
+      }
+      
+      user.passwordHash = await fastify.bcrypt.hash(password);
+      user.activated = true;
+      
+      const updatedUser = await userRepository.save(user);
+      
+      // Return success response
+      reply.status(200).send({
+        message: 'Account activated successfully',
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name,
+          activated: updatedUser.activated
+        }
+      });
+    } catch (error) {
+      fastify.log.error(error, 'Failed to activate user');
+      reply.status(500).send({ error: 'Failed to activate user' });
+    }
   });
 
 };

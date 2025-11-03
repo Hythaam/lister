@@ -1,6 +1,8 @@
 import { ItemComment } from '../entities/itemComment.js';
 import { Item } from '../entities/item.js';
 import { List } from '../entities/list.js';
+import { Group } from '../entities/group.js';
+import { User } from '../entities/user.js';
 
 // Schema definitions
 const commentSchema = {
@@ -9,6 +11,8 @@ const commentSchema = {
     id: { type: 'string', format: 'uuid' },
     item: { type: 'string', format: 'uuid' },
     sourceUser: { type: 'string', format: 'uuid' },
+    authorName: { type: 'string' },
+    authorEmail: { type: 'string', format: 'email' },
     text: { type: 'string' },
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' }
@@ -44,28 +48,55 @@ export default async function(fastify) {
   const commentRepository = fastify.db.getRepository(ItemComment);
   const itemRepository = fastify.db.getRepository(Item);
   const listRepository = fastify.db.getRepository(List);
+  const groupRepository = fastify.db.getRepository(Group);
+  const userRepository = fastify.db.getRepository(User);
 
-  // Helper function to check if user has access to the item (owns the list)
-  async function checkItemAccess(userId, listId, itemId) {
+  // Helper function to check comment access according to the requirements
+  // Users can see/add comments on shared lists but NOT on lists they own
+  async function checkCommentAccess(userId, listId, itemId) {
+    // First, check if the list exists and get its owner
     const list = await listRepository.findOne({
-      where: { id: listId, user: userId }
+      where: { id: listId }
     });
     
     if (!list) {
       return null;
     }
 
+    // Rule: List owners cannot see comments on their own lists
+    if (list.user === userId) {
+      return { canAccess: false, reason: 'List owners cannot see comments on their own lists' };
+    }
+
+    // Check if list is shared with any groups the user belongs to
+    const sharedList = await listRepository
+      .createQueryBuilder('list')
+      .leftJoinAndSelect('list.sharedWithGroups', 'group')
+      .leftJoinAndSelect('group.members', 'member')
+      .where('list.id = :listId', { listId })
+      .andWhere('(group.createdBy = :userId OR member.id = :userId)', { userId })
+      .getOne();
+
+    if (!sharedList || !sharedList.sharedWithGroups || sharedList.sharedWithGroups.length === 0) {
+      return { canAccess: false, reason: 'List is not shared with any groups you belong to' };
+    }
+
+    // Check if the item exists in this list
     const item = await itemRepository.findOne({
       where: { id: itemId, list: listId }
     });
 
-    return item;
+    if (!item) {
+      return null;
+    }
+
+    return { canAccess: true, list, item };
   }
 
-  // Get all comments for a specific item - requires authentication
+  // Get all comments for a specific item - requires authentication and proper access
   fastify.get('/lists/:listId/items/:itemId/comments', {
     schema: {
-      description: 'Get all comments for a specific item',
+      description: 'Get all comments for a specific item (not available for list owners)',
       tags: ['comments'],
       security: [{ basicAuth: [] }],
       params: {
@@ -90,25 +121,43 @@ export default async function(fastify) {
     const { listId, itemId } = request.params;
     const userId = request.user.id;
 
-    // Check if user has access to the item
-    const item = await checkItemAccess(userId, listId, itemId);
-    if (!item) {
+    // Check comment access according to requirements
+    const accessResult = await checkCommentAccess(userId, listId, itemId);
+    if (!accessResult) {
       reply.status(404).send({ error: 'Item not found or access denied' });
+      return;
+    }
+
+    if (!accessResult.canAccess) {
+      reply.status(403).send({ error: accessResult.reason });
       return;
     }
 
     const comments = await commentRepository.find({
       where: { item: itemId },
+      relations: ['sourceUser'],
       order: { createdAt: 'ASC' }
     });
     
-    return comments;
+    // Transform comments to include author information
+    const commentsWithAuthor = comments.map(comment => ({
+      id: comment.id,
+      item: comment.item,
+      sourceUser: comment.sourceUser.id,
+      authorName: comment.sourceUser.name,
+      authorEmail: comment.sourceUser.email,
+      text: comment.text,
+      createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt
+    }));
+    
+    return commentsWithAuthor;
   });
 
-  // Get a specific comment - requires authentication
+  // Get a specific comment - requires authentication and proper access
   fastify.get('/lists/:listId/items/:itemId/comments/:commentId', {
     schema: {
-      description: 'Get a specific comment by ID',
+      description: 'Get a specific comment by ID (not available for list owners)',
       tags: ['comments'],
       security: [{ basicAuth: [] }],
       params: {
@@ -131,15 +180,21 @@ export default async function(fastify) {
     const { listId, itemId, commentId } = request.params;
     const userId = request.user.id;
 
-    // Check if user has access to the item
-    const item = await checkItemAccess(userId, listId, itemId);
-    if (!item) {
+    // Check comment access according to requirements
+    const accessResult = await checkCommentAccess(userId, listId, itemId);
+    if (!accessResult) {
       reply.status(404).send({ error: 'Item not found or access denied' });
       return;
     }
 
+    if (!accessResult.canAccess) {
+      reply.status(403).send({ error: accessResult.reason });
+      return;
+    }
+
     const comment = await commentRepository.findOne({
-      where: { id: commentId, item: itemId }
+      where: { id: commentId, item: itemId },
+      relations: ['sourceUser']
     });
 
     if (!comment) {
@@ -147,13 +202,25 @@ export default async function(fastify) {
       return;
     }
 
-    return comment;
+    // Transform comment to include author information
+    const commentWithAuthor = {
+      id: comment.id,
+      item: comment.item,
+      sourceUser: comment.sourceUser.id,
+      authorName: comment.sourceUser.name,
+      authorEmail: comment.sourceUser.email,
+      text: comment.text,
+      createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt
+    };
+
+    return commentWithAuthor;
   });
 
-  // Create a new comment on an item - requires authentication
+  // Create a new comment on an item - requires authentication and proper access
   fastify.post('/lists/:listId/items/:itemId/comments', {
     schema: {
-      description: 'Create a new comment on an item',
+      description: 'Create a new comment on an item (not available for list owners)',
       tags: ['comments'],
       security: [{ basicAuth: [] }],
       params: {
@@ -179,10 +246,15 @@ export default async function(fastify) {
     const { text } = request.body;
     const userId = request.user.id;
 
-    // Check if user has access to the item
-    const item = await checkItemAccess(userId, listId, itemId);
-    if (!item) {
+    // Check comment access according to requirements
+    const accessResult = await checkCommentAccess(userId, listId, itemId);
+    if (!accessResult) {
       reply.status(404).send({ error: 'Item not found or access denied' });
+      return;
+    }
+
+    if (!accessResult.canAccess) {
+      reply.status(403).send({ error: accessResult.reason });
       return;
     }
 
@@ -192,6 +264,16 @@ export default async function(fastify) {
     }
 
     try {
+      // Check comment limit per item (100 comments max)
+      const commentCount = await commentRepository.count({
+        where: { item: itemId }
+      });
+
+      if (commentCount >= 100) {
+        reply.status(400).send({ error: 'Item has reached the maximum limit of 100 comments' });
+        return;
+      }
+
       const newComment = commentRepository.create({
         item: itemId,
         sourceUser: userId,
@@ -199,17 +281,36 @@ export default async function(fastify) {
       });
       
       const savedComment = await commentRepository.save(newComment);
-      reply.status(201).send(savedComment);
+      
+      // Fetch the saved comment with author information
+      const commentWithAuthor = await commentRepository.findOne({
+        where: { id: savedComment.id },
+        relations: ['sourceUser']
+      });
+      
+      // Transform comment to include author information
+      const response = {
+        id: commentWithAuthor.id,
+        item: commentWithAuthor.item,
+        sourceUser: commentWithAuthor.sourceUser.id,
+        authorName: commentWithAuthor.sourceUser.name,
+        authorEmail: commentWithAuthor.sourceUser.email,
+        text: commentWithAuthor.text,
+        createdAt: commentWithAuthor.createdAt,
+        updatedAt: commentWithAuthor.updatedAt
+      };
+      
+      reply.status(201).send(response);
     } catch (error) {
       fastify.log.error(error, 'Failed to create comment');
       reply.status(500).send({ error: 'Failed to create comment' });
     }
   });
 
-  // Update an existing comment - requires authentication and ownership
+  // Update an existing comment - requires authentication, proper access, and ownership
   fastify.put('/lists/:listId/items/:itemId/comments/:commentId', {
     schema: {
-      description: 'Update an existing comment',
+      description: 'Update an existing comment (not available for list owners)',
       tags: ['comments'],
       security: [{ basicAuth: [] }],
       params: {
@@ -236,10 +337,15 @@ export default async function(fastify) {
     const { text } = request.body;
     const userId = request.user.id;
 
-    // Check if user has access to the item
-    const item = await checkItemAccess(userId, listId, itemId);
-    if (!item) {
+    // Check comment access according to requirements
+    const accessResult = await checkCommentAccess(userId, listId, itemId);
+    if (!accessResult) {
       reply.status(404).send({ error: 'Item not found or access denied' });
+      return;
+    }
+
+    if (!accessResult.canAccess) {
+      reply.status(403).send({ error: accessResult.reason });
       return;
     }
 
@@ -273,10 +379,10 @@ export default async function(fastify) {
     }
   });
 
-  // Delete a comment - requires authentication and ownership
+  // Delete a comment - requires authentication, proper access, and ownership
   fastify.delete('/lists/:listId/items/:itemId/comments/:commentId', {
     schema: {
-      description: 'Delete a comment',
+      description: 'Delete a comment (not available for list owners)',
       tags: ['comments'],
       security: [{ basicAuth: [] }],
       params: {
@@ -300,10 +406,15 @@ export default async function(fastify) {
     const { listId, itemId, commentId } = request.params;
     const userId = request.user.id;
 
-    // Check if user has access to the item
-    const item = await checkItemAccess(userId, listId, itemId);
-    if (!item) {
+    // Check comment access according to requirements
+    const accessResult = await checkCommentAccess(userId, listId, itemId);
+    if (!accessResult) {
       reply.status(404).send({ error: 'Item not found or access denied' });
+      return;
+    }
+
+    if (!accessResult.canAccess) {
+      reply.status(403).send({ error: accessResult.reason });
       return;
     }
 
