@@ -1,5 +1,6 @@
-import { fastifyRequestContextPlugin } from '@fastify/request-context';
 import fastify from 'fastify';
+import fs from 'fs/promises';
+import path from 'path';
 const server = fastify({
   logger: true
 });
@@ -50,6 +51,21 @@ const start = async () => {
 
     await server.listen({ port, host });
     console.log(`🚀 Server running at http://localhost:${port}`);
+    
+    // Save OpenAPI spec to file
+    try {
+      const spec = server.swagger();
+      const specPath = path.join(process.cwd(), '..', 'docs', 'openapi.json');
+      
+      // Ensure docs directory exists
+      await fs.mkdir(path.dirname(specPath), { recursive: true });
+      
+      // Write the OpenAPI spec to file
+      await fs.writeFile(specPath, JSON.stringify(spec, null, 2), 'utf8');
+      console.log(`📄 OpenAPI spec saved to ${specPath}`);
+    } catch (specError) {
+      console.error('Failed to save OpenAPI spec:', specError);
+    }
   } catch (err) {
     server.log.error(err);
     process.exit(1);
