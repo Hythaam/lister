@@ -35,11 +35,11 @@ export const ItemSchema = new EntitySchema({
       nullable: true
     },
     createdAt: {
-      type: 'datetime',
+      type: 'timestamp',
       createDate: true
     },
     updatedAt: {
-      type: 'datetime',
+      type: 'timestamp',
       updateDate: true
     }
   },

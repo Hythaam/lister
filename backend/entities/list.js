@@ -30,11 +30,11 @@ export const ListSchema = new EntitySchema({
       nullable: false
     },
     createdAt: {
-      type: 'datetime',
+      type: 'timestamp',
       createDate: true
     },
     updatedAt: {
-      type: 'datetime',
+      type: 'timestamp',
       updateDate: true
     }
   },
