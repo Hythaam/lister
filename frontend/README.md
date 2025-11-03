@@ -8,6 +8,7 @@ The frontend is configured to run in Docker as part of the development stack. It
 
 - **Vite** - Fast build tool and dev server
 - **React 19** - Latest React with modern features
+- **Chakra UI** - Modern component library
 - **Hot Module Replacement** - Instant updates during development
 
 ## Running the Application
@@ -27,9 +28,6 @@ This will start all services including:
 - pgAdmin on http://localhost:8080
 
 ### Accessing the Frontend
-
-- **Through Nginx Proxy**: http://localhost/app/
-- **Direct Access**: http://localhost:5173
 
 The nginx proxy configuration serves the frontend at the `/app` path, making it available at `http://localhost/app/`.
 
@@ -65,7 +63,7 @@ The frontend is configured with:
 
 ### Docker Configuration
 
-- **Image**: Node.js 20 Alpine
+- **Image**: Node.js current alpine
 - **Port**: 5173 (mapped to host)
 - **Volumes**: Source code mounted for development
 - **Command**: `npm run dev --host`

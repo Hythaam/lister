@@ -4,6 +4,9 @@ const server = fastify({
   logger: true
 });
 
+// Register Swagger plugin
+server.register(await import('./plugins/swagger.js'));
+
 server.register(await import('@fastify/cors'), { origin: true });
 server.register(await import('@fastify/helmet'));
 server.register((await import('@fastify/request-context')).fastifyRequestContext); // For per-request context
@@ -13,7 +16,21 @@ server.register(await import('./plugins/db.js')); // Database plugin
 server.register(await import('./plugins/auth.js')); // Auth plugin with basic auth support
 
 // Health check route
-server.get('/health', async (request, reply) => {
+server.get('/health', {
+  schema: {
+    description: 'Health check endpoint',
+    tags: ['health'],
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          status: { type: 'string' },
+          timestamp: { type: 'string', format: 'date-time' }
+        }
+      }
+    }
+  }
+}, async (request, reply) => {
   return { status: 'ok', timestamp: new Date().toISOString() };
 });
 

@@ -1,5 +1,41 @@
 import { User } from '../entities/user.js';
 
+// Schema definitions
+const userSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    email: { type: 'string', format: 'email' },
+    roles: { type: 'array', items: { type: 'string' } }
+  }
+};
+
+const userCreateSchema = {
+  type: 'object',
+  required: ['email', 'password'],
+  properties: {
+    email: { type: 'string', format: 'email' },
+    password: { type: 'string', minLength: 6 }
+  }
+};
+
+const userUpdateSchema = {
+  type: 'object',
+  properties: {
+    email: { type: 'string', format: 'email' },
+    password: { type: 'string', minLength: 6 },
+    roles: { type: 'array', items: { type: 'string' } }
+  }
+};
+
+const errorSchema = {
+  type: 'object',
+  properties: {
+    error: { type: 'string' },
+    message: { type: 'string' }
+  }
+};
+
 // A plugin to encapsulate user routes
 export default async function(fastify) {
 
@@ -7,6 +43,19 @@ export default async function(fastify) {
 
   // Get all users - requires authentication
   fastify.get('/users', {
+    schema: {
+      description: 'Get all users',
+      tags: ['users'],
+      security: [{ basicAuth: [] }],
+      response: {
+        200: {
+          type: 'array',
+          items: userSchema
+        },
+        401: errorSchema,
+        403: errorSchema
+      }
+    },
     preHandler: fastify.auth.authorize(['admin'])
   }, async (request, reply) => {
     fastify.log.info(request.requestContext.getStore(), 'Fetching all users');
@@ -18,6 +67,24 @@ export default async function(fastify) {
 
   // get user by id - requires authentication
   fastify.get('/users/:id', {
+    schema: {
+      description: 'Get user by ID',
+      tags: ['users'],
+      security: [{ basicAuth: [] }],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' }
+        },
+        required: ['id']
+      },
+      response: {
+        200: userSchema,
+        401: errorSchema,
+        403: errorSchema,
+        404: errorSchema
+      }
+    }
   }, async (request, reply) => {
     const user = await userRepository.findOne({
       where: { id: request.params.id },
@@ -35,7 +102,19 @@ export default async function(fastify) {
   });
 
   // create new user - public (registration)
-  fastify.post('/users', async (request, reply) => {
+  fastify.post('/users', {
+    schema: {
+      description: 'Create a new user (registration)',
+      tags: ['users'],
+      body: userCreateSchema,
+      response: {
+        201: userSchema,
+        400: errorSchema,
+        409: errorSchema,
+        500: errorSchema
+      }
+    }
+  }, async (request, reply) => {
     const { email, password } = request.body;
     
     if (!email || !password) {
@@ -71,6 +150,26 @@ export default async function(fastify) {
 
   // update user by id - requires authentication (users can only update themselves)
   fastify.put('/users/:id', {
+    schema: {
+      description: 'Update user by ID',
+      tags: ['users'],
+      security: [{ basicAuth: [] }],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' }
+        },
+        required: ['id']
+      },
+      body: userUpdateSchema,
+      response: {
+        200: userSchema,
+        401: errorSchema,
+        403: errorSchema,
+        404: errorSchema,
+        409: errorSchema
+      }
+    }
   }, async (request, reply) => {
     // Check if user is trying to update their own profile
     if (request.requestContext.get('user').id !== request.params.id) {
@@ -119,6 +218,24 @@ export default async function(fastify) {
 
   // delete user by id - requires authentication (users can only delete themselves)
   fastify.delete('/users/:id', {
+    schema: {
+      description: 'Delete user by ID',
+      tags: ['users'],
+      security: [{ basicAuth: [] }],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' }
+        },
+        required: ['id']
+      },
+      response: {
+        204: { type: 'null' },
+        401: errorSchema,
+        403: errorSchema,
+        404: errorSchema
+      }
+    },
     preHandler: fastify.auth.authorize(['admin'])
   }, async (request, reply) => {
     // Check if user is trying to delete their own profile
