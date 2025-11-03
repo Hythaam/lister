@@ -65,6 +65,23 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Frontend Application
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    container_name: lister_frontend
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../../frontend:/app
+      - /app/node_modules
+    networks:
+      - lister_network
+    restart: unless-stopped
+
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
@@ -80,6 +97,7 @@ services:
       - lister_network
     depends_on:
       - backend
+      - frontend
     restart: unless-stopped
 
 volumes:
