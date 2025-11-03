@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lister Application</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .status {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .endpoints {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        code {
+            background: #f1f1f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 10px 0;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Lister Application</h1>
+        
+        <div class="status">
+            <strong>✅ System Status:</strong> Nginx reverse proxy is running!
+        </div>
+
+        <div class="endpoints">
+            <h3>Available Endpoints:</h3>
+            <ul>
+                <li><strong>Health Check:</strong> <a href="/health" target="_blank">/health</a></li>
+                <li><strong>Backend Health:</strong> <a href="/backend-health" target="_blank">/backend-health</a></li>
+                <li><strong>API Base:</strong> <code>/api/*</code> (proxied to backend)</li>
+                <li><strong>Users API:</strong> <code>/api/users</code></li>
+            </ul>
+        </div>
+
+        <div class="endpoints">
+            <h3>Development URLs:</h3>
+            <ul>
+                <li><strong>Application:</strong> <a href="http://localhost" target="_blank">http://localhost</a></li>
+                <li><strong>Direct Backend:</strong> <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></li>
+                <li><strong>Database:</strong> <code>postgres://lister_user:lister_password@localhost:5432/lister_db</code></li>
+            </ul>
+        </div>
+
+        <p style="text-align: center; color: #666; margin-top: 30px;">
+            <small>This is a development environment. The backend API is accessible through the nginx reverse proxy.</small>
+        </p>
+    </div>
+
+    <script>
+        // Simple health check indicator
+        fetch('/backend-health')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    document.querySelector('.status').innerHTML = '<strong>✅ System Status:</strong> All services are running!';
+                }
+            })
+            .catch(error => {
+                document.querySelector('.status').innerHTML = '<strong>⚠️ System Status:</strong> Backend service may be starting up...';
+                document.querySelector('.status').style.background = '#fff3cd';
+                document.querySelector('.status').style.borderColor = '#ffc107';
+            });
+    </script>
+</body>
+</html>
