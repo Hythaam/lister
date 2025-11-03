@@ -39,6 +39,9 @@ server.get('/health', {
 server.register( async function (server) {
     server.addHook('preHandler', server.basicAuth);
     server.register(await import('./routes/users.js'));
+    server.register(await import('./routes/lists.js'));
+    server.register(await import('./routes/items.js'));
+    server.register(await import('./routes/comments.js'));
   },
   { prefix: '/api' }
 );
