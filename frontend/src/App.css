@@ -1,42 +1,80 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* Application-specific styles */
+
+/* Override default link behavior in navigation */
+.nav-link {
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.nav-link:hover {
+  color: var(--color-primary);
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.nav-link.active {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Sidebar specific styles */
+.sidebar {
+  transition: width var(--transition-normal), left var(--transition-normal);
+  overflow-x: hidden;
+}
+
+.sidebar .nav-item {
+  margin-bottom: var(--spacing-xs);
+}
+
+.sidebar .nav-link {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  margin: 0 var(--spacing-sm);
+  white-space: nowrap;
+}
+
+.sidebar .nav-children {
+  padding-left: var(--spacing-lg);
+}
+
+.sidebar .expand-arrow {
+  transition: transform var(--transition-fast);
+}
+
+.sidebar .nav-link[aria-expanded="true"] .expand-arrow {
+  transform: rotate(90deg);
+}
+
+/* Header styles */
+.mobile-menu-btn {
+  background: none;
+  border: none;
+  font-size: var(--font-size-lg);
+  padding: var(--spacing-sm);
+}
+
+/* Authentication pages */
+.auth-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary));
+}
+
+/* Loading states */
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+}
+
+/* Responsive utilities */
+@media (max-width: 767px) {
+  .hide-mobile {
+    display: none !important;
   }
-  to {
-    transform: rotate(360deg);
+}
+
+@media (min-width: 768px) {
+  .hide-desktop {
+    display: none !important;
   }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
 }

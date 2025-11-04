@@ -115,6 +115,159 @@ export default async function(fastify) {
     return user;
   });
 
+  // Get current authenticated user details
+  fastify.get('/users/me', {
+    schema: {
+      description: 'Get current authenticated user details',
+      tags: ['users'],
+      security: [{ basicAuth: [] }],
+      response: {
+        200: userSchema,
+        401: errorSchema
+      }
+    }
+  }, async (request, reply) => {
+    const currentUser = request.requestContext.get('user');
+    
+    if (!currentUser) {
+      reply.status(401).send({ error: 'User not authenticated' });
+      return;
+    }
+
+    // Fetch fresh user data from database
+    const user = await userRepository.findOne({
+      where: { id: currentUser.id },
+      select: ['id', 'email', 'name', 'activated', 'roles'] // Don't return password hash
+    });
+
+    if (!user) {
+      reply.status(401).send({ error: 'User not found' });
+      return;
+    }
+
+    return user;
+  });
+
+  // Update current authenticated user details
+  fastify.put('/users/me', {
+    schema: {
+      description: 'Update current authenticated user details',
+      tags: ['users'],
+      security: [{ basicAuth: [] }],
+      body: {
+        type: 'object',
+        properties: {
+          email: { type: 'string', format: 'email' },
+          name: { type: 'string', maxLength: 255 }
+        }
+      },
+      response: {
+        200: userSchema,
+        401: errorSchema,
+        409: errorSchema
+      }
+    }
+  }, async (request, reply) => {
+    const currentUser = request.requestContext.get('user');
+    
+    if (!currentUser) {
+      reply.status(401).send({ error: 'User not authenticated' });
+      return;
+    }
+
+    const user = await userRepository.findOneBy({ id: currentUser.id });
+    if (!user) {
+      reply.status(401).send({ error: 'User not found' });
+      return;
+    }
+
+    const { email, name } = request.body;
+
+    if (email) {
+      // Check if email is already taken by another user
+      const existingUser = await userRepository.findOne({
+        where: { email },
+        select: ['id']
+      });
+      if (existingUser && existingUser.id !== user.id) {
+        reply.status(409).send({ error: 'Email already taken' });
+        return;
+      }
+      user.email = email;
+    }
+    
+    if (name !== undefined) {
+      user.name = name;
+    }
+    
+    const updatedUser = await userRepository.save(user);
+    
+    // Return user without password hash
+    return {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      activated: updatedUser.activated,
+      roles: updatedUser.roles
+    };
+  });
+
+  // Change password for current authenticated user
+  fastify.post('/users/change-password', {
+    schema: {
+      description: 'Change password for current authenticated user',
+      tags: ['users'],
+      security: [{ basicAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['currentPassword', 'newPassword'],
+        properties: {
+          currentPassword: { type: 'string' },
+          newPassword: { type: 'string', minLength: 6 }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' }
+          }
+        },
+        401: errorSchema,
+        400: errorSchema
+      }
+    }
+  }, async (request, reply) => {
+    const currentUser = request.requestContext.get('user');
+    
+    if (!currentUser) {
+      reply.status(401).send({ error: 'User not authenticated' });
+      return;
+    }
+
+    const { currentPassword, newPassword } = request.body;
+
+    // Fetch user with password hash
+    const user = await userRepository.findOneBy({ id: currentUser.id });
+    if (!user) {
+      reply.status(401).send({ error: 'User not found' });
+      return;
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await fastify.bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isCurrentPasswordValid) {
+      reply.status(400).send({ error: 'Current password is incorrect' });
+      return;
+    }
+
+    // Update password
+    user.passwordHash = await fastify.bcrypt.hash(newPassword);
+    await userRepository.save(user);
+
+    return { message: 'Password changed successfully' };
+  });
+
   // create new user - public (registration)
   fastify.post('/users', {
     schema: {
